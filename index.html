@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest Manager - Template</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Librerías para Exportar (Excel y PDF) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root {
+            /* --- CONFIGURACIÓN DE COLORES (BRANDING) --- */
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #bb86fc; /* Color Principal */
+            --success-color: #03dac6;
+            --warning-color: #ffb74d;
+            --danger-color: #cf6679;
+            --info-color: #64b5f6;
+        }
+
+        body { font-family: 'Roboto Mono', monospace; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; padding-bottom: 80px; }
+        
+        /* HEADER */
+        header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid var(--accent-color); padding-bottom: 20px; }
+        h1 { margin: 0; color: var(--accent-color); text-transform: uppercase; letter-spacing: 2px; }
+        p.subtitle { margin: 5px 0; font-size: 0.9rem; color: #888; }
+        
+        /* DASHBOARD */
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .card { background: var(--card-bg); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .card h3 { margin: 0 0 10px 0; font-size: 0.75rem; color: #aaa; text-transform: uppercase; }
+        .card .value { font-size: 1.4rem; font-weight: bold; }
+        .money { color: var(--success-color); }
+        .debt { color: var(--danger-color); }
+
+        /* FORMULARIO AGREGAR */
+        .add-form { background: var(--card-bg); padding: 20px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px; border-left: 4px solid var(--accent-color); }
+        input, select { padding: 10px; background: #2c2c2c; border: 1px solid #444; color: white; border-radius: 4px; flex-grow: 1; font-family: inherit; }
+        input:focus, select:focus { outline: none; border-color: var(--accent-color); }
+        
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; text-transform: uppercase; font-family: inherit; transition: opacity 0.2s;}
+        button:hover { opacity: 0.9; }
+        .btn-primary { background-color: var(--accent-color); color: black; }
+        
+        /* TABLA */
+        .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); min-width: 700px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #333; vertical-align: middle; }
+        th { background-color: #252525; color: var(--accent-color); text-transform: uppercase; font-size: 0.85rem; position: sticky; top: 0; }
+        .row-staff { background-color: #2a2a35; color: #aab; }
+        
+        /* BADGES */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; display: inline-block; min-width: 60px; text-align: center; }
+        .badge-staff { background: #3f51b5; color: white; }
+        .badge-general { background: #333; color: #ccc; }
+        .badge-guest { background: var(--warning-color); color: black; }
+
+        /* CHECKBOX CUSTOM */
+        .check-container { display: block; position: relative; padding-left: 35px; cursor: pointer; user-select: none; }
+        .check-container input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+        .checkmark { position: absolute; top: -8px; left: 0; height: 25px; width: 25px; background-color: #444; border-radius: 4px; border: 1px solid #555; }
+        .check-container input:checked ~ .checkmark { background-color: var(--success-color); border-color: var(--success-color); }
+        .check-container input:checked ~ .checkmark:after { display: block; }
+        .checkmark:after { content: ""; position: absolute; display: none; left: 9px; top: 5px; width: 5px; height: 10px; border: solid black; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+        
+        /* ACCIONES */
+        .action-btn { background: transparent; border: 1px solid #444; color: #aaa; padding: 5px 10px; border-radius: 4px; margin-left: 5px; cursor: pointer; }
+        .action-btn:hover { background: #333; color: white; }
+        .btn-delete:hover { background: #cf667933; color: var(--danger-color); border-color: var(--danger-color); }
+        .btn-edit:hover { background: #64b5f633; color: var(--info-color); border-color: var(--info-color); }
+
+        .actions-panel { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-excel { background-color: #1D6F42; color: white; flex: 1; }
+        .btn-pdf { background-color: #B30B00; color: white; flex: 1; }
+
+        /* MODAL DE EDICIÓN */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: var(--card-bg); padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; border: 1px solid var(--accent-color); box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .modal-body { display: flex; flex-direction: column; gap: 15px; }
+        .modal-footer { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
+        .form-group label { font-size: 0.8rem; color: #888; margin-bottom: 5px; display: block; }
+        
+        .inline-comment { font-size: 0.85rem; color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1 id="app-title">CARGANDO...</h1>
+        <p class="subtitle" id="app-subtitle">Gestión de Lista</p>
+    </header>
+
+    <!-- KPI Dashboard -->
+    <div class="dashboard">
+        <div class="card">
+            <h3>Caja (Recaudado)</h3>
+            <div class="value money" id="total-collected">$0</div>
+        </div>
+        <div class="card" style="border-color: var(--danger-color);">
+            <h3 style="color:var(--danger-color)">A Pagar (Banda)</h3>
+            <div class="value debt" id="total-debt">$0</div>
+        </div>
+        <div class="card">
+            <h3>Proyección Total</h3>
+            <div class="value" id="total-projected">$0</div>
+        </div>
+        <div class="card">
+            <h3>Total Personas</h3>
+            <div class="value" id="count-total">0</div>
+        </div>
+    </div>
+
+    <!-- Formulario Agregar Rápido -->
+    <div class="add-form">
+        <input type="text" id="input-name" placeholder="Nombre y Apellido" required autocomplete="off">
+        <select id="input-type" style="max-width: 180px;">
+            <!-- Se llena dinámicamente con JS -->
+        </select>
+        <input type="text" id="input-comment" placeholder="Comentario (Opcional)">
+        <button class="btn-primary" id="btn-add-guest">+ Agregar</button>
+    </div>
+
+    <!-- Tabla de Datos -->
+    <div class="table-container">
+        <table id="guest-table">
+            <thead>
+                <tr>
+                    <th width="40">Pago</th>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th>Precio</th>
+                    <th>Comentarios</th>
+                    <th width="90" style="text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <!-- Filas generadas por JS -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Botones de Exportación -->
+    <div class="actions-panel">
+        <button class="btn-excel" id="btn-excel">Descargar Excel (Auditoría)</button>
+        <button class="btn-pdf" id="btn-pdf">Descargar PDF (Puerta)</button>
+    </div>
+</div>
+
+<!-- MODAL DE EDICIÓN -->
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Editar Registro</h3>
+            <span style="cursor:pointer;" onclick="closeModal()">×</span>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="edit-id">
+            
+            <div class="form-group">
+                <label>Nombre y Apellido</label>
+                <input type="text" id="edit-name">
+            </div>
+            
+            <div class="form-group">
+                <label>Categoría</label>
+                <select id="edit-type" onchange="updateEditPricePreview()">
+                    <!-- Se llena dinámicamente -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Valor de Entrada (Editable)</label>
+                <input type="number" id="edit-price">
+            </div>
+
+            <div class="form-group">
+                <label>Comentarios</label>
+                <input type="text" id="edit-comment">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeModal()" style="background:transparent; border:1px solid #555; color:#ccc;">Cancelar</button>
+            <button class="btn-primary" id="btn-save-edit">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+    // ==========================================
+    // 1. CONFIGURACIÓN DEL EVENTO (EDITAR AQUI)
+    // ==========================================
+    const EVENT_CONFIG = {
+        bandName: "NIHIL",
+        showName: "Salón Pueyrredón - 24 Ene",
+        ticketPrice: 15000,
+        currencySymbol: "$",
+        firebase: {
+            // --- PEGA TUS CREDENCIALES DE FIREBASE AQUÍ ---
+             apiKey: "AIzaSyC_Hfo1J2OnSn-C6oBqzYm0Swp8HCjTXcU",
+  authDomain: "nihil-lista.firebaseapp.com",
+  databaseURL: "https://nihil-lista-default-rtdb.firebaseio.com",
+  projectId: "nihil-lista",
+  storageBucket: "nihil-lista.firebasestorage.app",
+  messagingSenderId: "591963677552",
+  appId: "1:591963677552:web:2037c01557eb67c7f165b5"
+        }
+    };
+
+    // Tipos de entrada y su lógica
+    const TICKET_TYPES = {
+        'general': { label: `Público (${EVENT_CONFIG.currencySymbol}${EVENT_CONFIG.ticketPrice})`, defaultPrice: EVENT_CONFIG.ticketPrice },
+        'guest':   { label: 'Invitado (Banda)', defaultPrice: EVENT_CONFIG.ticketPrice },
+        'staff':   { label: 'Staff / Prensa',   defaultPrice: 0 }
+    };
+
+    // ==========================================
+    // 2. INICIALIZACIÓN
+    // ==========================================
+    
+    // UI Init
+    document.getElementById('app-title').innerText = EVENT_CONFIG.bandName;
+    document.getElementById('app-subtitle').innerText = EVENT_CONFIG.showName;
+    
+    const typeSelect = document.getElementById('input-type');
+    const editTypeSelect = document.getElementById('edit-type');
+    
+    // Llenar selects dinámicamente
+    Object.keys(TICKET_TYPES).forEach(key => {
+        const option = new Option(TICKET_TYPES[key].label, key);
+        typeSelect.add(option.cloneNode(true));
+        
+        // Para el modal, limpiamos el precio del label para que sea más limpio
+        const cleanLabel = TICKET_TYPES[key].label.split('(')[0].trim();
+        editTypeSelect.add(new Option(cleanLabel, key));
+    });
+
+    // Firebase Init
+    let db;
+    try {
+        const app = initializeApp(EVENT_CONFIG.firebase);
+        db = getDatabase(app);
+    } catch (error) { 
+        console.error("Error Firebase:", error);
+        alert("Error de conexión. Revisa la consola.");
+    }
+
+    let globalCollected = 0; // Para el reporte PDF
+
+    // ==========================================
+    // 3. LÓGICA DE NEGOCIO (CRUD)
+    // ==========================================
+
+    // AGREGAR
+    document.getElementById('btn-add-guest').addEventListener('click', () => {
+        const nameInput = document.getElementById('input-name');
+        const typeKey = document.getElementById('input-type').value;
+        const commentInput = document.getElementById('input-comment');
+        
+        if (!nameInput.value.trim()) return alert("Falta el nombre");
+        if (!db) return alert("Sin conexión a DB");
+
+        const newGuest = {
+            name: nameInput.value.trim(),
+            type: typeKey,
+            price: TICKET_TYPES[typeKey].defaultPrice, // Precio base según categoría
+            paid: false,
+            comment: commentInput.value.trim(),
+            timestamp: Date.now()
+        };
+
+        push(ref(db, 'guests'), newGuest);
+        
+        // Reset Form
+        nameInput.value = ''; 
+        commentInput.value = ''; 
+        nameInput.focus();
+    });
+
+    // LEER (Renderizado Reactivo)
+    const tableBody = document.getElementById('table-body');
+    
+    if (db) {
+        onValue(ref(db, 'guests'), (snapshot) => {
+            const data = snapshot.val() || {};
+            window.currentData = data; // Guardamos en memoria global para exportar/editar
+            renderTable(data);
+        });
+    }
+
+    function renderTable(dataObj) {
+        tableBody.innerHTML = '';
+        let collected = 0; let debt = 0; let projected = 0; let totalPeople = 0;
+
+        const guestsArray = Object.keys(dataObj).map(key => ({ id: key, ...dataObj[key] }));
+        // Ordenar: Staff primero, luego alfabético
+        guestsArray.sort((a, b) => {
+            if (a.type === 'staff' && b.type !== 'staff') return -1;
+            if (a.type !== 'staff' && b.type === 'staff') return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        guestsArray.forEach(guest => {
+            totalPeople++;
+            const price = parseInt(guest.price || 0);
+
+            // Cálculos Financieros
+            if (guest.type === 'general') {
+                projected += price;
+                if (guest.paid) collected += price;
+            } else if (guest.type === 'guest') {
+                projected += price;
+                if (guest.paid) collected += price;
+                else debt += price; // Si es invitado y no pagó, es deuda de banda
+            }
+            // Staff no suma a finanzas, solo a conteo
+
+            // Renderizado Fila
+            const tr = document.createElement('tr');
+            if(guest.type === 'staff') tr.classList.add('row-staff');
+            
+            let badgeClass = guest.type === 'staff' ? 'badge-staff' : (guest.type === 'guest' ? 'badge-guest' : 'badge-general');
+            let typeLabel = guest.type === 'staff' ? 'STAFF' : (guest.type === 'guest' ? 'INVITADO' : 'PÚBLICO');
+
+            tr.innerHTML = `
+                <td>
+                    <label class="check-container">
+                        <input type="checkbox" ${guest.paid ? 'checked' : ''} onchange="window.updatePayment('${guest.id}', this.checked)">
+                        <span class="checkmark"></span>
+                    </label>
+                </td>
+                <td><strong>${guest.name}</strong></td>
+                <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
+                <td>${price === 0 ? '-' : '$'+price.toLocaleString()}</td>
+                <td><span class="inline-comment">${guest.comment || ''}</span></td>
+                <td style="text-align: right;">
+                    <button class="action-btn btn-edit" onclick="window.openEditModal('${guest.id}')" title="Editar">✎</button>
+                    <button class="action-btn btn-delete" onclick="window.deleteGuest('${guest.id}')" title="Borrar">×</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+
+        // Actualizar Dashboard
+        document.getElementById('total-collected').innerText = `$${collected.toLocaleString()}`;
+        document.getElementById('total-debt').innerText = `$${debt.toLocaleString()}`;
+        document.getElementById('total-projected').innerText = `$${projected.toLocaleString()}`;
+        document.getElementById('count-total').innerText = totalPeople;
+        
+        globalCollected = collected;
+    }
+
+    // ==========================================
+    // 4. FUNCIONES GLOBALES Y MODAL
+    // ==========================================
+
+    window.updatePayment = (key, isPaid) => {
+        if(db) update(ref(db, 'guests/' + key), { paid: isPaid });
+    };
+
+    window.deleteGuest = (key) => {
+        if(db && confirm('¿Eliminar este registro permanentemente?')) {
+            remove(ref(db, 'guests/' + key));
+        }
+    };
+
+    // --- LÓGICA DEL MODAL ---
+    const modal = document.getElementById('edit-modal');
+    
+    window.openEditModal = (key) => {
+        const guest = window.currentData[key];
+        if(!guest) return;
+
+        // Llenar campos
+        document.getElementById('edit-id').value = key;
+        document.getElementById('edit-name').value = guest.name;
+        document.getElementById('edit-type').value = guest.type;
+        document.getElementById('edit-price').value = guest.price;
+        document.getElementById('edit-comment').value = guest.comment || '';
+
+        modal.style.display = 'flex';
+    };
+
+    window.closeModal = () => {
+        modal.style.display = 'none';
+    };
+
+    // Actualizar precio sugerido en el modal si cambian la categoría
+    window.updateEditPricePreview = () => {
+        const type = document.getElementById('edit-type').value;
+        const priceInput = document.getElementById('edit-price');
+        
+        // Solo cambiamos el precio si el usuario lo desea, 
+        // pero por UX es mejor sugerir el precio default de la nueva categoria
+        if(confirm("¿Actualizar precio al valor por defecto de esta categoría?")) {
+            priceInput.value = TICKET_TYPES[type].defaultPrice;
+        }
+    };
+
+    // GUARDAR EDICIÓN
+    document.getElementById('btn-save-edit').addEventListener('click', () => {
+        const id = document.getElementById('edit-id').value;
+        const name = document.getElementById('edit-name').value;
+        const type = document.getElementById('edit-type').value;
+        const price = Number(document.getElementById('edit-price').value);
+        const comment = document.getElementById('edit-comment').value;
+
+        if(!name) return alert("El nombre es obligatorio");
+
+        update(ref(db, 'guests/' + id), {
+            name: name,
+            type: type,
+            price: price,
+            comment: comment
+        }).then(() => {
+            closeModal();
+        }).catch(err => alert("Error al guardar: " + err.message));
+    });
+
+    // Cerrar modal al hacer click afuera
+    window.onclick = (event) => {
+        if (event.target == modal) closeModal();
+    }
+
+    // ==========================================
+    // 5. EXPORTACIÓN (EXCEL / PDF)
+    // ==========================================
+
+    document.getElementById('btn-excel').addEventListener('click', () => {
+        if(!window.currentData) return alert("Lista vacía");
+        
+        const rows = Object.values(window.currentData).map(g => ({
+            "Nombre": g.name,
+            "Categoría": g.type.toUpperCase(),
+            "Precio Pactado": g.price,
+            "Pagado": g.paid ? "SÍ" : "NO",
+            "Comentarios": g.comment,
+            "Fecha Registro": new Date(g.timestamp).toLocaleString()
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Lista " + EVENT_CONFIG.bandName);
+        XLSX.writeFile(workbook, `${EVENT_CONFIG.bandName}_Planilla.xlsx`);
+    });
+
+    document.getElementById('btn-pdf').addEventListener('click', () => {
+        if(!window.currentData) return alert("Lista vacía");
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFillColor(187, 134, 252); // Accent Color
+        doc.rect(0, 0, 210, 20, 'F');
+        doc.setTextColor(0,0,0);
+        doc.setFontSize(16);
+        doc.text(EVENT_CONFIG.bandName + " - LISTA DE PUERTA", 105, 13, null, null, "center");
+        
+        doc.setTextColor(0,0,0);
+        doc.setFontSize(10);
+        doc.text(EVENT_CONFIG.showName + " | Generado: " + new Date().toLocaleTimeString(), 14, 28);
+
+        // Tabla
+        const guestsArray = Object.values(window.currentData)
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const tableRows = guestsArray.map(g => {
+            let tipo = g.type === 'staff' ? 'STAFF' : (g.type === 'guest' ? 'INVITADO' : 'GRAL');
+            // Check manual para la puerta
+            return [g.name, tipo, "   [   ]   "]; 
+        });
+
+        doc.autoTable({
+            head: [['Nombre', 'Tipo', 'Entró?']],
+            body: tableRows,
+            startY: 35,
+            theme: 'grid',
+            styles: { fontSize: 11, cellPadding: 3 },
+            headStyles: { fillColor: [40, 40, 40], textColor: 255 }
+        });
+
+        // Footer Totales
+        const finalY = doc.lastAutoTable.finalY + 15;
+        doc.setFontSize(12);
+        doc.text(`Total en Caja (Pre-Venta/Pagado): $${globalCollected.toLocaleString()}`, 14, finalY);
+
+        doc.save(`${EVENT_CONFIG.bandName}_Puerta.pdf`);
+    });
+
+</script>
+</body>
+</html>
