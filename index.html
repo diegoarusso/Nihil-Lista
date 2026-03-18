@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guest Manager - Template</title>
+    <title>NIHIL — Guest Manager</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
     
     <!-- Librerías para Exportar (Excel y PDF) -->
@@ -13,11 +13,10 @@
 
     <style>
         :root {
-            /* --- CONFIGURACIÓN DE COLORES (BRANDING) --- */
             --bg-color: #121212;
             --card-bg: #1e1e1e;
             --text-color: #e0e0e0;
-            --accent-color: #bb86fc; /* Color Principal */
+            --accent-color: #bb86fc;
             --success-color: #03dac6;
             --warning-color: #ffb74d;
             --danger-color: #cf6679;
@@ -32,6 +31,47 @@
         h1 { margin: 0; color: var(--accent-color); text-transform: uppercase; letter-spacing: 2px; }
         p.subtitle { margin: 5px 0; font-size: 0.9rem; color: #888; }
         
+        /* SHOW SELECTOR */
+        .show-selector-bar {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        .show-selector-bar label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+        .show-selector-bar select {
+            flex-grow: 1;
+            min-width: 200px;
+        }
+        .btn-new-show {
+            background: transparent;
+            border: 1px dashed var(--accent-color);
+            color: var(--accent-color);
+            padding: 10px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .btn-new-show:hover {
+            background: var(--accent-color);
+            color: black;
+        }
+
         /* DASHBOARD */
         .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .card { background: var(--card-bg); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
@@ -80,78 +120,169 @@
         .btn-excel { background-color: #1D6F42; color: white; flex: 1; }
         .btn-pdf { background-color: #B30B00; color: white; flex: 1; }
 
-        /* MODAL DE EDICIÓN */
+        /* MODALES */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: var(--card-bg); padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; border: 1px solid var(--accent-color); box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .modal-content { background: var(--card-bg); padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; border: 1px solid var(--accent-color); box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .modal-header h3 { margin: 0; }
         .modal-body { display: flex; flex-direction: column; gap: 15px; }
         .modal-footer { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
         .form-group label { font-size: 0.8rem; color: #888; margin-bottom: 5px; display: block; }
+        .form-group input, .form-group select { width: 100%; box-sizing: border-box; }
         
         .inline-comment { font-size: 0.85rem; color: #888; font-style: italic; }
+
+        /* EMPTY STATE */
+        .empty-state { text-align: center; padding: 60px 20px; color: #555; }
+        .empty-state span { font-size: 2.5rem; display: block; margin-bottom: 15px; }
+        .empty-state p { font-size: 0.95rem; }
+
+        /* HIDDEN */
+        .hidden { display: none !important; }
+
+        /* ====== DRAG & DROP ====== */
+        .drag-handle {
+            cursor: grab;
+            color: #555;
+            font-size: 1.1rem;
+            padding: 4px 6px;
+            user-select: none;
+            display: inline-block;
+            line-height: 1;
+            transition: color 0.15s;
+        }
+        .drag-handle:hover { color: var(--accent-color); }
+        .drag-handle:active { cursor: grabbing; }
+
+        tr.dragging { opacity: 0.4; background: #333 !important; }
+        tr.drag-over { border-top: 2px solid var(--accent-color) !important; }
+        tr.drag-over-below { border-bottom: 2px solid var(--accent-color) !important; }
+
+        /* SORT MODE TOGGLE */
+        .sort-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: var(--card-bg);
+            border: 1px solid #333;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        .sort-bar label {
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .sort-toggle { display: flex; gap: 0; }
+        .sort-toggle button {
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            border: 1px solid #444;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.15s;
+        }
+        .sort-toggle button:first-child { border-radius: 4px 0 0 4px; }
+        .sort-toggle button:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+        .sort-toggle button.active {
+            background: var(--accent-color);
+            color: black;
+            border-color: var(--accent-color);
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1 id="app-title">CARGANDO...</h1>
-        <p class="subtitle" id="app-subtitle">Gestión de Lista</p>
+        <h1 id="app-title">NIHIL</h1>
+        <p class="subtitle" id="app-subtitle">Guest Manager</p>
     </header>
 
-    <!-- KPI Dashboard -->
-    <div class="dashboard">
-        <div class="card">
-            <h3>Caja (Recaudado)</h3>
-            <div class="value money" id="total-collected">$0</div>
-        </div>
-        <div class="card" style="border-color: var(--danger-color);">
-            <h3 style="color:var(--danger-color)">A Pagar (Banda)</h3>
-            <div class="value debt" id="total-debt">$0</div>
-        </div>
-        <div class="card">
-            <h3>Proyección Total</h3>
-            <div class="value" id="total-projected">$0</div>
-        </div>
-        <div class="card">
-            <h3>Total Personas</h3>
-            <div class="value" id="count-total">0</div>
-        </div>
-    </div>
-
-    <!-- Formulario Agregar Rápido -->
-    <div class="add-form">
-        <input type="text" id="input-name" placeholder="Nombre y Apellido" required autocomplete="off">
-        <select id="input-type" style="max-width: 180px;">
-            <!-- Se llena dinámicamente con JS -->
+    <!-- Show Selector -->
+    <div class="show-selector-bar">
+        <label>Show:</label>
+        <select id="show-selector">
+            <option value="">Cargando shows...</option>
         </select>
-        <input type="text" id="input-comment" placeholder="Comentario (Opcional)">
-        <button class="btn-primary" id="btn-add-guest">+ Agregar</button>
+        <button class="btn-new-show" id="btn-open-new-show">+ Nuevo Show</button>
     </div>
 
-    <!-- Tabla de Datos -->
-    <div class="table-container">
-        <table id="guest-table">
-            <thead>
-                <tr>
-                    <th width="40">Pago</th>
-                    <th>Nombre</th>
-                    <th>Categoría</th>
-                    <th>Precio</th>
-                    <th>Comentarios</th>
-                    <th width="90" style="text-align: right;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody id="table-body">
-                <!-- Filas generadas por JS -->
-            </tbody>
-        </table>
+    <!-- Contenido principal -->
+    <div id="main-content" class="hidden">
+
+        <!-- KPI Dashboard -->
+        <div class="dashboard">
+            <div class="card">
+                <h3>Caja (Recaudado)</h3>
+                <div class="value money" id="total-collected">$0</div>
+            </div>
+            <div class="card" style="border-color: var(--danger-color);">
+                <h3 style="color:var(--danger-color)">A Pagar (Banda)</h3>
+                <div class="value debt" id="total-debt">$0</div>
+            </div>
+            <div class="card">
+                <h3>Proyección Total</h3>
+                <div class="value" id="total-projected">$0</div>
+            </div>
+            <div class="card">
+                <h3>Total Personas</h3>
+                <div class="value" id="count-total">0</div>
+            </div>
+        </div>
+
+        <!-- Formulario Agregar Rápido -->
+        <div class="add-form">
+            <input type="text" id="input-name" placeholder="Nombre y Apellido" required autocomplete="off">
+            <select id="input-type" style="max-width: 180px;"></select>
+            <input type="text" id="input-comment" placeholder="Comentario (Opcional)">
+            <button class="btn-primary" id="btn-add-guest">+ Agregar</button>
+        </div>
+
+        <!-- Sort mode toggle -->
+        <div class="sort-bar">
+            <label>Orden:</label>
+            <div class="sort-toggle">
+                <button id="sort-auto" class="active">Automático</button>
+                <button id="sort-manual">Manual (Drag)</button>
+            </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div class="table-container">
+            <table id="guest-table">
+                <thead>
+                    <tr>
+                        <th width="30" id="th-drag" class="hidden"></th>
+                        <th width="40">Pago</th>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Comentarios</th>
+                        <th width="90" style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Botones de Exportación -->
+        <div class="actions-panel">
+            <button class="btn-excel" id="btn-excel">Descargar Excel (Auditoría)</button>
+            <button class="btn-pdf" id="btn-pdf">Descargar PDF (Puerta)</button>
+        </div>
     </div>
-    
-    <!-- Botones de Exportación -->
-    <div class="actions-panel">
-        <button class="btn-excel" id="btn-excel">Descargar Excel (Auditoría)</button>
-        <button class="btn-pdf" id="btn-pdf">Descargar PDF (Puerta)</button>
+
+    <!-- Empty state -->
+    <div id="no-show-state" class="empty-state">
+        <span>🎤</span>
+        <p>Seleccioná un show del menú o creá uno nuevo para empezar.</p>
     </div>
 </div>
 
@@ -160,28 +291,22 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>Editar Registro</h3>
-            <span style="cursor:pointer;" onclick="closeModal()">×</span>
+            <span style="cursor:pointer; font-size: 1.5rem;" onclick="closeModal()">×</span>
         </div>
         <div class="modal-body">
             <input type="hidden" id="edit-id">
-            
             <div class="form-group">
                 <label>Nombre y Apellido</label>
                 <input type="text" id="edit-name">
             </div>
-            
             <div class="form-group">
                 <label>Categoría</label>
-                <select id="edit-type" onchange="updateEditPricePreview()">
-                    <!-- Se llena dinámicamente -->
-                </select>
+                <select id="edit-type" onchange="updateEditPricePreview()"></select>
             </div>
-
             <div class="form-group">
                 <label>Valor de Entrada (Editable)</label>
                 <input type="number" id="edit-price">
             </div>
-
             <div class="form-group">
                 <label>Comentarios</label>
                 <input type="text" id="edit-comment">
@@ -194,146 +319,317 @@
     </div>
 </div>
 
+<!-- MODAL NUEVO SHOW -->
+<div class="modal-overlay" id="new-show-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Crear Nuevo Show</h3>
+            <span style="cursor:pointer; font-size: 1.5rem;" onclick="closeNewShowModal()">×</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Nombre del Show</label>
+                <input type="text" id="new-show-name" placeholder="Ej: S1CKFEST Polvorines - 21 Marzo">
+            </div>
+            <div class="form-group">
+                <label>Fecha del Show</label>
+                <input type="date" id="new-show-date">
+            </div>
+            <div class="form-group">
+                <label>Precio Entrada General ($)</label>
+                <input type="number" id="new-show-price" value="15000">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeNewShowModal()" style="background:transparent; border:1px solid #555; color:#ccc;">Cancelar</button>
+            <button class="btn-primary" id="btn-create-show">Crear Show</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getDatabase, ref, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+    import { getDatabase, ref, push, set, onValue, update, remove, off } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
     // ==========================================
-    // 1. CONFIGURACIÓN DEL EVENTO (EDITAR AQUI)
+    // 1. CONFIGURACIÓN GLOBAL
     // ==========================================
-    const EVENT_CONFIG = {
-        bandName: "NIHIL",
-        showName: "S1CKFEST Polvorines con DARLO TODO - 21 Marzo",
-        ticketPrice: 15000,
-        currencySymbol: "$",
-        firebase: {
-            // --- PEGA TUS CREDENCIALES DE FIREBASE AQUÍ ---
-             apiKey: "AIzaSyC_Hfo1J2OnSn-C6oBqzYm0Swp8HCjTXcU",
-  authDomain: "nihil-lista.firebaseapp.com",
-  databaseURL: "https://nihil-lista-default-rtdb.firebaseio.com",
-  projectId: "nihil-lista",
-  storageBucket: "nihil-lista.firebasestorage.app",
-  messagingSenderId: "591963677552",
-  appId: "1:591963677552:web:2037c01557eb67c7f165b5"
-        }
-    };
+    const BAND_NAME = "NIHIL";
+    const CURRENCY = "$";
 
-    // Tipos de entrada y su lógica
-    const TICKET_TYPES = {
-        'general': { label: `Público (${EVENT_CONFIG.currencySymbol}${EVENT_CONFIG.ticketPrice})`, defaultPrice: EVENT_CONFIG.ticketPrice },
-        'guest':   { label: 'Invitado (Banda)', defaultPrice: EVENT_CONFIG.ticketPrice },
-        'staff':   { label: 'Staff / Prensa',   defaultPrice: 0 }
+    const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyC_Hfo1J2OnSn-C6oBqzYm0Swp8HCjTXcU",
+        authDomain: "nihil-lista.firebaseapp.com",
+        databaseURL: "https://nihil-lista-default-rtdb.firebaseio.com",
+        projectId: "nihil-lista",
+        storageBucket: "nihil-lista.firebasestorage.app",
+        messagingSenderId: "591963677552",
+        appId: "1:591963677552:web:2037c01557eb67c7f165b5"
     };
 
     // ==========================================
-    // 2. INICIALIZACIÓN
+    // 2. INICIALIZACIÓN FIREBASE
     // ==========================================
-    
-    // UI Init
-    document.getElementById('app-title').innerText = EVENT_CONFIG.bandName;
-    document.getElementById('app-subtitle').innerText = EVENT_CONFIG.showName;
-    
-    const typeSelect = document.getElementById('input-type');
-    const editTypeSelect = document.getElementById('edit-type');
-    
-    // Llenar selects dinámicamente
-    Object.keys(TICKET_TYPES).forEach(key => {
-        const option = new Option(TICKET_TYPES[key].label, key);
-        typeSelect.add(option.cloneNode(true));
-        
-        // Para el modal, limpiamos el precio del label para que sea más limpio
-        const cleanLabel = TICKET_TYPES[key].label.split('(')[0].trim();
-        editTypeSelect.add(new Option(cleanLabel, key));
-    });
-
-    // Firebase Init
     let db;
     try {
-        const app = initializeApp(EVENT_CONFIG.firebase);
+        const app = initializeApp(FIREBASE_CONFIG);
         db = getDatabase(app);
-    } catch (error) { 
+    } catch (error) {
         console.error("Error Firebase:", error);
-        alert("Error de conexión. Revisa la consola.");
+        alert("Error de conexión a Firebase. Revisa la consola.");
     }
 
-    let globalCollected = 0; // Para el reporte PDF
+    // ==========================================
+    // 3. ESTADO DE LA APP
+    // ==========================================
+    let currentShowId = null;
+    let currentShowConfig = null;
+    let guestsListener = null;
+    let globalCollected = 0;
+    let sortMode = 'auto'; // 'auto' | 'manual'
 
     // ==========================================
-    // 3. LÓGICA DE NEGOCIO (CRUD)
+    // 4. TICKET TYPES
     // ==========================================
-
-    // AGREGAR
-    document.getElementById('btn-add-guest').addEventListener('click', () => {
-        const nameInput = document.getElementById('input-name');
-        const typeKey = document.getElementById('input-type').value;
-        const commentInput = document.getElementById('input-comment');
-        
-        if (!nameInput.value.trim()) return alert("Falta el nombre");
-        if (!db) return alert("Sin conexión a DB");
-
-        const newGuest = {
-            name: nameInput.value.trim(),
-            type: typeKey,
-            price: TICKET_TYPES[typeKey].defaultPrice, // Precio base según categoría
-            paid: false,
-            comment: commentInput.value.trim(),
-            timestamp: Date.now()
+    function getTicketTypes(ticketPrice) {
+        return {
+            'general': { label: `Público (${CURRENCY}${ticketPrice.toLocaleString('es-AR')})`, defaultPrice: ticketPrice },
+            'guest':   { label: 'Invitado (Banda)', defaultPrice: ticketPrice },
+            'staff':   { label: 'Staff / Prensa',   defaultPrice: 0 }
         };
+    }
 
-        push(ref(db, 'guests'), newGuest);
-        
-        // Reset Form
-        nameInput.value = ''; 
-        commentInput.value = ''; 
-        nameInput.focus();
+    function populateTypeSelects(ticketPrice) {
+        const types = getTicketTypes(ticketPrice);
+        const typeSelect = document.getElementById('input-type');
+        const editTypeSelect = document.getElementById('edit-type');
+        typeSelect.innerHTML = '';
+        editTypeSelect.innerHTML = '';
+        Object.keys(types).forEach(key => {
+            typeSelect.add(new Option(types[key].label, key));
+            const cleanLabel = types[key].label.split('(')[0].trim();
+            editTypeSelect.add(new Option(cleanLabel, key));
+        });
+    }
+
+    // ==========================================
+    // 5. SORT MODE TOGGLE
+    // ==========================================
+    const btnSortAuto = document.getElementById('sort-auto');
+    const btnSortManual = document.getElementById('sort-manual');
+    const thDrag = document.getElementById('th-drag');
+
+    btnSortAuto.addEventListener('click', () => {
+        sortMode = 'auto';
+        btnSortAuto.classList.add('active');
+        btnSortManual.classList.remove('active');
+        thDrag.classList.add('hidden');
+        if (window.currentData) renderTable(window.currentData);
     });
 
-    // LEER (Renderizado Reactivo)
-    const tableBody = document.getElementById('table-body');
-    
-    if (db) {
-        onValue(ref(db, 'guests'), (snapshot) => {
+    btnSortManual.addEventListener('click', () => {
+        sortMode = 'manual';
+        btnSortManual.classList.add('active');
+        btnSortAuto.classList.remove('active');
+        thDrag.classList.remove('hidden');
+        if (window.currentData) renderTable(window.currentData);
+    });
+
+    // ==========================================
+    // 6. SHOW SELECTOR
+    // ==========================================
+    const showSelector = document.getElementById('show-selector');
+
+    function loadShows() {
+        if (!db) return;
+        onValue(ref(db, 'shows'), (snapshot) => {
+            const shows = snapshot.val() || {};
+            showSelector.innerHTML = '<option value="">— Seleccionar show —</option>';
+            const sorted = Object.entries(shows)
+                .map(([id, data]) => ({ id, ...data }))
+                .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            sorted.forEach(show => {
+                const opt = document.createElement('option');
+                opt.value = show.id;
+                opt.textContent = show.name + (show.date ? ` (${show.date})` : '');
+                showSelector.appendChild(opt);
+            });
+            if (currentShowId && shows[currentShowId]) {
+                showSelector.value = currentShowId;
+            }
+        });
+    }
+
+    showSelector.addEventListener('change', () => {
+        const selectedId = showSelector.value;
+        if (selectedId) selectShow(selectedId);
+        else deselectShow();
+    });
+
+    function selectShow(showId) {
+        if (guestsListener && currentShowId) {
+            off(ref(db, `shows/${currentShowId}/guests`));
+            guestsListener = null;
+        }
+        currentShowId = showId;
+        onValue(ref(db, `shows/${showId}`), (snapshot) => {
+            const showData = snapshot.val();
+            if (!showData) return deselectShow();
+            currentShowConfig = {
+                name: showData.name || 'Sin nombre',
+                date: showData.date || '',
+                ticketPrice: showData.ticketPrice || 15000
+            };
+            document.getElementById('app-subtitle').innerText = currentShowConfig.name;
+            populateTypeSelects(currentShowConfig.ticketPrice);
+            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('no-show-state').classList.add('hidden');
+            subscribeToGuests(showId);
+        }, { onlyOnce: true });
+    }
+
+    function deselectShow() {
+        if (guestsListener && currentShowId) {
+            off(ref(db, `shows/${currentShowId}/guests`));
+            guestsListener = null;
+        }
+        currentShowId = null;
+        currentShowConfig = null;
+        document.getElementById('app-subtitle').innerText = 'Guest Manager';
+        document.getElementById('main-content').classList.add('hidden');
+        document.getElementById('no-show-state').classList.remove('hidden');
+    }
+
+    function subscribeToGuests(showId) {
+        const guestsRef = ref(db, `shows/${showId}/guests`);
+        guestsListener = onValue(guestsRef, (snapshot) => {
             const data = snapshot.val() || {};
-            window.currentData = data; // Guardamos en memoria global para exportar/editar
+            window.currentData = data;
             renderTable(data);
         });
     }
 
+    // ==========================================
+    // 7. CREAR NUEVO SHOW
+    // ==========================================
+    const newShowModal = document.getElementById('new-show-modal');
+
+    document.getElementById('btn-open-new-show').addEventListener('click', () => {
+        document.getElementById('new-show-name').value = '';
+        document.getElementById('new-show-date').value = '';
+        document.getElementById('new-show-price').value = '15000';
+        newShowModal.style.display = 'flex';
+    });
+
+    window.closeNewShowModal = () => { newShowModal.style.display = 'none'; };
+
+    document.getElementById('btn-create-show').addEventListener('click', () => {
+        const name = document.getElementById('new-show-name').value.trim();
+        const date = document.getElementById('new-show-date').value;
+        const ticketPrice = parseInt(document.getElementById('new-show-price').value) || 15000;
+        if (!name) return alert('El nombre del show es obligatorio');
+        if (!db) return alert('Sin conexión a Firebase');
+        const newShowRef = push(ref(db, 'shows'));
+        set(newShowRef, { name, date, ticketPrice, createdAt: Date.now() })
+            .then(() => {
+                closeNewShowModal();
+                const newId = newShowRef.key;
+                showSelector.value = newId;
+                selectShow(newId);
+            })
+            .catch(err => alert('Error al crear show: ' + err.message));
+    });
+
+    newShowModal.addEventListener('click', (e) => {
+        if (e.target === newShowModal) closeNewShowModal();
+    });
+
+    // ==========================================
+    // 8. CRUD DE INVITADOS
+    // ==========================================
+    document.getElementById('btn-add-guest').addEventListener('click', () => {
+        if (!currentShowId) return alert('Seleccioná un show primero');
+        const nameInput = document.getElementById('input-name');
+        const typeKey = document.getElementById('input-type').value;
+        const commentInput = document.getElementById('input-comment');
+        if (!nameInput.value.trim()) return alert('Falta el nombre');
+        if (!db) return alert('Sin conexión a DB');
+
+        const types = getTicketTypes(currentShowConfig.ticketPrice);
+        
+        // sortOrder: al final de la lista
+        const existingOrders = Object.values(window.currentData || {}).map(g => g.sortOrder || 0);
+        const maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : 0;
+
+        const newGuest = {
+            name: nameInput.value.trim(),
+            type: typeKey,
+            price: types[typeKey].defaultPrice,
+            paid: false,
+            comment: commentInput.value.trim(),
+            timestamp: Date.now(),
+            sortOrder: maxOrder + 1
+        };
+        push(ref(db, `shows/${currentShowId}/guests`), newGuest);
+        nameInput.value = '';
+        commentInput.value = '';
+        nameInput.focus();
+    });
+
+    // ==========================================
+    // 9. RENDER TABLA
+    // ==========================================
+    const tableBody = document.getElementById('table-body');
+
     function renderTable(dataObj) {
         tableBody.innerHTML = '';
-        let collected = 0; let debt = 0; let projected = 0; let totalPeople = 0;
+        let collected = 0, debt = 0, projected = 0, totalPeople = 0;
 
         const guestsArray = Object.keys(dataObj).map(key => ({ id: key, ...dataObj[key] }));
-        // Ordenar: Staff primero, luego alfabético
-        guestsArray.sort((a, b) => {
-            if (a.type === 'staff' && b.type !== 'staff') return -1;
-            if (a.type !== 'staff' && b.type === 'staff') return 1;
-            return a.name.localeCompare(b.name);
-        });
+        
+        if (sortMode === 'auto') {
+            guestsArray.sort((a, b) => {
+                if (a.type === 'staff' && b.type !== 'staff') return -1;
+                if (a.type !== 'staff' && b.type === 'staff') return 1;
+                return a.name.localeCompare(b.name);
+            });
+        } else {
+            guestsArray.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        }
+
+        if (guestsArray.length === 0) {
+            const colSpan = sortMode === 'manual' ? 8 : 7;
+            tableBody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:30px; color:#555;">Lista vacía — agregá el primer invitado arriba.</td></tr>`;
+            resetDashboard();
+            return;
+        }
 
         guestsArray.forEach(guest => {
             totalPeople++;
             const price = parseInt(guest.price || 0);
 
-            // Cálculos Financieros
             if (guest.type === 'general') {
                 projected += price;
                 if (guest.paid) collected += price;
             } else if (guest.type === 'guest') {
                 projected += price;
                 if (guest.paid) collected += price;
-                else debt += price; // Si es invitado y no pagó, es deuda de banda
+                else debt += price;
             }
-            // Staff no suma a finanzas, solo a conteo
 
-            // Renderizado Fila
             const tr = document.createElement('tr');
-            if(guest.type === 'staff') tr.classList.add('row-staff');
-            
+            tr.dataset.id = guest.id;
+            if (guest.type === 'staff') tr.classList.add('row-staff');
+
             let badgeClass = guest.type === 'staff' ? 'badge-staff' : (guest.type === 'guest' ? 'badge-guest' : 'badge-general');
             let typeLabel = guest.type === 'staff' ? 'STAFF' : (guest.type === 'guest' ? 'INVITADO' : 'PÚBLICO');
 
+            const dragCell = sortMode === 'manual' 
+                ? `<td><span class="drag-handle" title="Arrastrá para reordenar">⠿</span></td>` 
+                : '';
+
             tr.innerHTML = `
+                ${dragCell}
                 <td>
                     <label class="check-container">
                         <input type="checkbox" ${guest.paid ? 'checked' : ''} onchange="window.updatePayment('${guest.id}', this.checked)">
@@ -342,104 +638,170 @@
                 </td>
                 <td><strong>${guest.name}</strong></td>
                 <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
-                <td>${price === 0 ? '-' : '$'+price.toLocaleString()}</td>
+                <td>${price === 0 ? '-' : '$'+price.toLocaleString('es-AR')}</td>
                 <td><span class="inline-comment">${guest.comment || ''}</span></td>
                 <td style="text-align: right;">
                     <button class="action-btn btn-edit" onclick="window.openEditModal('${guest.id}')" title="Editar">✎</button>
                     <button class="action-btn btn-delete" onclick="window.deleteGuest('${guest.id}')" title="Borrar">×</button>
                 </td>
             `;
+
+            // Drag events solo en modo manual
+            if (sortMode === 'manual') {
+                tr.draggable = true;
+                tr.addEventListener('dragstart', handleDragStart);
+                tr.addEventListener('dragover', handleDragOver);
+                tr.addEventListener('dragleave', handleDragLeave);
+                tr.addEventListener('drop', handleDrop);
+                tr.addEventListener('dragend', handleDragEnd);
+            }
+
             tableBody.appendChild(tr);
         });
 
-        // Actualizar Dashboard
-        document.getElementById('total-collected').innerText = `$${collected.toLocaleString()}`;
-        document.getElementById('total-debt').innerText = `$${debt.toLocaleString()}`;
-        document.getElementById('total-projected').innerText = `$${projected.toLocaleString()}`;
+        document.getElementById('total-collected').innerText = `$${collected.toLocaleString('es-AR')}`;
+        document.getElementById('total-debt').innerText = `$${debt.toLocaleString('es-AR')}`;
+        document.getElementById('total-projected').innerText = `$${projected.toLocaleString('es-AR')}`;
         document.getElementById('count-total').innerText = totalPeople;
-        
         globalCollected = collected;
     }
 
-    // ==========================================
-    // 4. FUNCIONES GLOBALES Y MODAL
-    // ==========================================
+    function resetDashboard() {
+        document.getElementById('total-collected').innerText = '$0';
+        document.getElementById('total-debt').innerText = '$0';
+        document.getElementById('total-projected').innerText = '$0';
+        document.getElementById('count-total').innerText = '0';
+        globalCollected = 0;
+    }
 
+    // ==========================================
+    // 10. DRAG & DROP
+    // ==========================================
+    let draggedRow = null;
+
+    function handleDragStart(e) {
+        draggedRow = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.id);
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (this === draggedRow) return;
+        
+        tableBody.querySelectorAll('.drag-over, .drag-over-below').forEach(el => {
+            el.classList.remove('drag-over', 'drag-over-below');
+        });
+
+        const rect = this.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+            this.classList.add('drag-over');
+        } else {
+            this.classList.add('drag-over-below');
+        }
+    }
+
+    function handleDragLeave(e) {
+        this.classList.remove('drag-over', 'drag-over-below');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over', 'drag-over-below');
+        if (!draggedRow || this === draggedRow) return;
+
+        const rect = this.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const insertBefore = e.clientY < midY;
+
+        if (insertBefore) {
+            tableBody.insertBefore(draggedRow, this);
+        } else {
+            tableBody.insertBefore(draggedRow, this.nextSibling);
+        }
+
+        saveSortOrder();
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        tableBody.querySelectorAll('.drag-over, .drag-over-below').forEach(el => {
+            el.classList.remove('drag-over', 'drag-over-below');
+        });
+        draggedRow = null;
+    }
+
+    function saveSortOrder() {
+        if (!db || !currentShowId) return;
+        const rows = tableBody.querySelectorAll('tr[data-id]');
+        const updates = {};
+        rows.forEach((row, index) => {
+            const guestId = row.dataset.id;
+            updates[`shows/${currentShowId}/guests/${guestId}/sortOrder`] = index;
+        });
+        update(ref(db), updates).catch(err => console.error('Error guardando orden:', err));
+    }
+
+    // ==========================================
+    // 11. FUNCIONES GLOBALES (PAGO / BORRAR / MODAL)
+    // ==========================================
     window.updatePayment = (key, isPaid) => {
-        if(db) update(ref(db, 'guests/' + key), { paid: isPaid });
+        if (db && currentShowId) update(ref(db, `shows/${currentShowId}/guests/${key}`), { paid: isPaid });
     };
 
     window.deleteGuest = (key) => {
-        if(db && confirm('¿Eliminar este registro permanentemente?')) {
-            remove(ref(db, 'guests/' + key));
+        if (db && currentShowId && confirm('¿Eliminar este registro permanentemente?')) {
+            remove(ref(db, `shows/${currentShowId}/guests/${key}`));
         }
     };
 
-    // --- LÓGICA DEL MODAL ---
-    const modal = document.getElementById('edit-modal');
+    const editModal = document.getElementById('edit-modal');
     
     window.openEditModal = (key) => {
         const guest = window.currentData[key];
-        if(!guest) return;
-
-        // Llenar campos
+        if (!guest) return;
         document.getElementById('edit-id').value = key;
         document.getElementById('edit-name').value = guest.name;
         document.getElementById('edit-type').value = guest.type;
         document.getElementById('edit-price').value = guest.price;
         document.getElementById('edit-comment').value = guest.comment || '';
-
-        modal.style.display = 'flex';
+        editModal.style.display = 'flex';
     };
 
-    window.closeModal = () => {
-        modal.style.display = 'none';
-    };
+    window.closeModal = () => { editModal.style.display = 'none'; };
 
-    // Actualizar precio sugerido en el modal si cambian la categoría
     window.updateEditPricePreview = () => {
         const type = document.getElementById('edit-type').value;
         const priceInput = document.getElementById('edit-price');
-        
-        // Solo cambiamos el precio si el usuario lo desea, 
-        // pero por UX es mejor sugerir el precio default de la nueva categoria
-        if(confirm("¿Actualizar precio al valor por defecto de esta categoría?")) {
-            priceInput.value = TICKET_TYPES[type].defaultPrice;
+        if (currentShowConfig && confirm('¿Actualizar precio al valor por defecto de esta categoría?')) {
+            const types = getTicketTypes(currentShowConfig.ticketPrice);
+            priceInput.value = types[type].defaultPrice;
         }
     };
 
-    // GUARDAR EDICIÓN
     document.getElementById('btn-save-edit').addEventListener('click', () => {
+        if (!currentShowId) return;
         const id = document.getElementById('edit-id').value;
         const name = document.getElementById('edit-name').value;
         const type = document.getElementById('edit-type').value;
         const price = Number(document.getElementById('edit-price').value);
         const comment = document.getElementById('edit-comment').value;
-
-        if(!name) return alert("El nombre es obligatorio");
-
-        update(ref(db, 'guests/' + id), {
-            name: name,
-            type: type,
-            price: price,
-            comment: comment
-        }).then(() => {
-            closeModal();
-        }).catch(err => alert("Error al guardar: " + err.message));
+        if (!name) return alert('El nombre es obligatorio');
+        update(ref(db, `shows/${currentShowId}/guests/${id}`), { name, type, price, comment })
+            .then(() => closeModal())
+            .catch(err => alert('Error al guardar: ' + err.message));
     });
 
-    // Cerrar modal al hacer click afuera
-    window.onclick = (event) => {
-        if (event.target == modal) closeModal();
-    }
+    editModal.addEventListener('click', (e) => { if (e.target === editModal) closeModal(); });
 
     // ==========================================
-    // 5. EXPORTACIÓN (EXCEL / PDF)
+    // 12. EXPORTACIÓN (EXCEL / PDF)
     // ==========================================
-
     document.getElementById('btn-excel').addEventListener('click', () => {
-        if(!window.currentData) return alert("Lista vacía");
-        
+        if (!window.currentData || !currentShowConfig) return alert('Lista vacía');
         const rows = Object.values(window.currentData).map(g => ({
             "Nombre": g.name,
             "Categoría": g.type.toUpperCase(),
@@ -448,38 +810,37 @@
             "Comentarios": g.comment,
             "Fecha Registro": new Date(g.timestamp).toLocaleString()
         }));
-
         const worksheet = XLSX.utils.json_to_sheet(rows);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Lista " + EVENT_CONFIG.bandName);
-        XLSX.writeFile(workbook, `${EVENT_CONFIG.bandName}_Planilla.xlsx`);
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Lista " + BAND_NAME);
+        XLSX.writeFile(workbook, `${BAND_NAME}_${currentShowConfig.name.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
     });
 
     document.getElementById('btn-pdf').addEventListener('click', () => {
-        if(!window.currentData) return alert("Lista vacía");
-        
+        if (!window.currentData || !currentShowConfig) return alert('Lista vacía');
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
-        // Header
-        doc.setFillColor(187, 134, 252); // Accent Color
+        doc.setFillColor(187, 134, 252);
         doc.rect(0, 0, 210, 20, 'F');
         doc.setTextColor(0,0,0);
         doc.setFontSize(16);
-        doc.text(EVENT_CONFIG.bandName + " - LISTA DE PUERTA", 105, 13, null, null, "center");
-        
+        doc.text(BAND_NAME + " - LISTA DE PUERTA", 105, 13, null, null, "center");
         doc.setTextColor(0,0,0);
         doc.setFontSize(10);
-        doc.text(EVENT_CONFIG.showName + " | Generado: " + new Date().toLocaleTimeString(), 14, 28);
+        doc.text(currentShowConfig.name + " | Generado: " + new Date().toLocaleTimeString(), 14, 28);
 
-        // Tabla
-        const guestsArray = Object.values(window.currentData)
-            .sort((a, b) => a.name.localeCompare(b.name));
+        // Exportar en el orden actual visible
+        const guestsArray = Object.keys(window.currentData).map(key => ({ id: key, ...window.currentData[key] }));
+        if (sortMode === 'manual') {
+            guestsArray.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        } else {
+            guestsArray.sort((a, b) => a.name.localeCompare(b.name));
+        }
 
         const tableRows = guestsArray.map(g => {
             let tipo = g.type === 'staff' ? 'STAFF' : (g.type === 'guest' ? 'INVITADO' : 'GRAL');
-            // Check manual para la puerta
-            return [g.name, tipo, "   [   ]   "]; 
+            return [g.name, tipo, "   [   ]   "];
         });
 
         doc.autoTable({
@@ -491,13 +852,17 @@
             headStyles: { fillColor: [40, 40, 40], textColor: 255 }
         });
 
-        // Footer Totales
         const finalY = doc.lastAutoTable.finalY + 15;
         doc.setFontSize(12);
-        doc.text(`Total en Caja (Pre-Venta/Pagado): $${globalCollected.toLocaleString()}`, 14, finalY);
-
-        doc.save(`${EVENT_CONFIG.bandName}_Puerta.pdf`);
+        doc.text(`Total en Caja (Pre-Venta/Pagado): $${globalCollected.toLocaleString('es-AR')}`, 14, finalY);
+        doc.save(`${BAND_NAME}_${currentShowConfig.name.replace(/[^a-zA-Z0-9]/g, '_')}_Puerta.pdf`);
     });
+
+    // ==========================================
+    // 13. ARRANQUE
+    // ==========================================
+    document.getElementById('app-title').innerText = BAND_NAME;
+    loadShows();
 
 </script>
 </body>
