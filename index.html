@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=9e975f3c-f075-49f1-9c82-8b503f6ca05a
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NIHIL — Guest Manager</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -12,6 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
     <style>
+        [hidden] { display: none !important; }
         :root {
             --bg-color: #121212;
             --card-bg: #1e1e1e;
@@ -194,11 +198,23 @@
             color: black;
             border-color: var(--accent-color);
         }
+        .payment-alias { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; box-sizing: border-box; padding: 14px 20px calc(14px + env(safe-area-inset-bottom)); background: #1e1e1e; border-top: 1px solid var(--accent-color); text-align: center; font-size: 0.9rem; box-shadow: 0 -4px 16px rgba(0,0,0,0.3); }
+        .payment-alias strong { color: var(--success-color); font-size: 1.1rem; white-space: nowrap; user-select: all; }
+        @media (max-width: 480px) { .payment-alias span { display: block; margin-bottom: 4px; } .container { padding-bottom: 110px; } }
     </style>
 </head>
 <body>
+<section id="auth-gate" style="max-width:520px;margin:65px auto;padding:28px;background:#1e1e1e;border:1px solid #444;border-radius:8px">
+<h1 style="font-size:24px">NIHIL · Lista de la banda</h1>
+<p>Entrá con tu cuenta de Google. La sesión queda recordada en este dispositivo para las próximas visitas.</p>
+<p id="auth-message" role="status">Preparando acceso…</p>
+<button id="auth-login" disabled class="btn-primary">Entrar con Google</button>
+<p style="color:#aaa;font-size:12px">Acceso privado para los integrantes de Nihil.</p>
+</section>
+<div id="auth-session" hidden style="max-width:1100px;margin:10px auto;display:flex;gap:15px;align-items:center"><span id="auth-account"></span><button id="auth-logout">Cerrar sesión</button><a href="https://nihil-entradas.netlify.app/admin.html" target="_blank" rel="noopener">Pedidos de entradas</a></div>
 
-<div class="container">
+
+<div class="container" id="private-app" hidden>
     <header>
         <h1 id="app-title">NIHIL</h1>
         <p class="subtitle" id="app-subtitle">Guest Manager</p>
@@ -211,6 +227,7 @@
             <option value="">Cargando shows...</option>
         </select>
         <button class="btn-new-show" id="btn-open-new-show">+ Nuevo Show</button>
+        <button class="btn-new-show" id="btn-open-advance-price" hidden>Precio anticipada</button>
     </div>
 
     <!-- Contenido principal -->
@@ -319,6 +336,25 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="advance-price-modal" role="dialog" aria-modal="true" aria-labelledby="advance-price-title">
+    <form class="modal-content" id="advance-price-form">
+        <div class="modal-header">
+            <h3 id="advance-price-title">Precio anticipada</h3>
+        </div>
+        <div class="modal-body">
+            <p id="advance-price-show"></p>
+            <div class="form-group">
+                <label for="advance-price">Precio por entrada ($)</label>
+                <input type="number" id="advance-price" min="1" step="1" required>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="btn-cancel-advance-price" style="background:transparent; border:1px solid #555; color:#ccc;">Cancelar</button>
+            <button type="submit" class="btn-primary" id="btn-save-advance-price">Guardar</button>
+        </div>
+    </form>
+</div>
+
 <!-- MODAL NUEVO SHOW -->
 <div class="modal-overlay" id="new-show-modal">
     <div class="modal-content">
@@ -351,6 +387,8 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getDatabase, ref, push, set, onValue, update, remove, off } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserLocalPersistence, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { isBandMember } from './access-policy.mjs';
     // ==========================================
     // 1. CONFIGURACIÓN GLOBAL
     // ==========================================
@@ -370,10 +408,12 @@
     // ==========================================
     // 2. INICIALIZACIÓN FIREBASE
     // ==========================================
-    let db;
+    let db, auth;
+    let authReady = false, authorized = false, showsUnsubscribe = null, sessionVersion = 0;
     try {
         const app = initializeApp(FIREBASE_CONFIG);
         db = getDatabase(app);
+        auth = getAuth(app);
     } catch (error) {
         console.error("Error Firebase:", error);
         alert("Error de conexión a Firebase. Revisa la consola.");
@@ -391,16 +431,19 @@
     // ==========================================
     // 4. TICKET TYPES
     // ==========================================
-    function getTicketTypes(ticketPrice) {
+    function getTicketTypes({ ticketPrice, advancePrice }) {
         return {
             'general': { label: `Público (${CURRENCY}${ticketPrice.toLocaleString('es-AR')})`, defaultPrice: ticketPrice },
+            ...(Number.isSafeInteger(advancePrice) && advancePrice > 0 ? {
+                'advance': { label: `Anticipada (${CURRENCY}${advancePrice.toLocaleString('es-AR')})`, defaultPrice: advancePrice }
+            } : {}),
             'guest':   { label: 'Invitado (Banda)', defaultPrice: ticketPrice },
             'staff':   { label: 'Staff / Prensa',   defaultPrice: 0 }
         };
     }
 
-    function populateTypeSelects(ticketPrice) {
-        const types = getTicketTypes(ticketPrice);
+    function populateTypeSelects() {
+        const types = getTicketTypes(currentShowConfig);
         const typeSelect = document.getElementById('input-type');
         const editTypeSelect = document.getElementById('edit-type');
         typeSelect.innerHTML = '';
@@ -439,10 +482,13 @@
     // 6. SHOW SELECTOR
     // ==========================================
     const showSelector = document.getElementById('show-selector');
+    const openAdvancePrice = document.getElementById('btn-open-advance-price');
 
     function loadShows() {
-        if (!db) return;
-        onValue(ref(db, 'shows'), (snapshot) => {
+        if (!db || !authorized) return;
+        const version = sessionVersion;
+        showsUnsubscribe = onValue(ref(db, 'shows'), (snapshot) => {
+            if (!authorized || version !== sessionVersion) return;
             const shows = snapshot.val() || {};
             showSelector.innerHTML = '<option value="">— Seleccionar show —</option>';
             const sorted = Object.entries(shows)
@@ -467,21 +513,26 @@
     });
 
     function selectShow(showId) {
+        if (!authorized) return;
+        const version = sessionVersion;
         if (guestsListener && currentShowId) {
             off(ref(db, `shows/${currentShowId}/guests`));
             guestsListener = null;
         }
         currentShowId = showId;
         onValue(ref(db, `shows/${showId}`), (snapshot) => {
+            if (!authorized || version !== sessionVersion || currentShowId !== showId) return;
             const showData = snapshot.val();
             if (!showData) return deselectShow();
             currentShowConfig = {
                 name: showData.name || 'Sin nombre',
                 date: showData.date || '',
-                ticketPrice: showData.ticketPrice || 15000
+                ticketPrice: showData.ticketPrice || 15000,
+                advancePrice: showData.advancePrice
             };
             document.getElementById('app-subtitle').innerText = currentShowConfig.name;
-            populateTypeSelects(currentShowConfig.ticketPrice);
+            populateTypeSelects();
+            openAdvancePrice.hidden = false;
             document.getElementById('main-content').classList.remove('hidden');
             document.getElementById('no-show-state').classList.add('hidden');
             subscribeToGuests(showId);
@@ -495,19 +546,70 @@
         }
         currentShowId = null;
         currentShowConfig = null;
+        openAdvancePrice.hidden = true;
         document.getElementById('app-subtitle').innerText = 'Guest Manager';
         document.getElementById('main-content').classList.add('hidden');
         document.getElementById('no-show-state').classList.remove('hidden');
     }
 
     function subscribeToGuests(showId) {
+        if (!authorized) return;
+        const version = sessionVersion;
         const guestsRef = ref(db, `shows/${showId}/guests`);
         guestsListener = onValue(guestsRef, (snapshot) => {
+            if (!authorized || version !== sessionVersion) return;
             const data = snapshot.val() || {};
             window.currentData = data;
             renderTable(data);
         });
     }
+
+    const advancePriceModal = document.getElementById('advance-price-modal');
+    const advancePriceInput = document.getElementById('advance-price');
+    const saveAdvancePrice = document.getElementById('btn-save-advance-price');
+    let advancePriceShowId;
+
+    openAdvancePrice.addEventListener('click', () => {
+        if (!currentShowConfig) return;
+        advancePriceShowId = currentShowId;
+        document.getElementById('advance-price-show').textContent = currentShowConfig.name;
+        advancePriceInput.value = currentShowConfig.advancePrice ?? '';
+        advancePriceModal.style.display = 'flex';
+        advancePriceInput.focus();
+    });
+
+    function closeAdvancePriceModal() {
+        advancePriceModal.style.display = 'none';
+        openAdvancePrice.focus();
+    }
+
+    document.getElementById('btn-cancel-advance-price').addEventListener('click', closeAdvancePriceModal);
+    advancePriceModal.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !saveAdvancePrice.disabled) closeAdvancePriceModal();
+    });
+
+    document.getElementById('advance-price-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!authorized || !currentShowId || advancePriceShowId !== currentShowId || saveAdvancePrice.disabled) return;
+        const showId = currentShowId;
+        const version = sessionVersion;
+        const advancePrice = advancePriceInput.valueAsNumber;
+        if (!Number.isSafeInteger(advancePrice) || advancePrice < 1) return alert('Ingresá un precio entero mayor que cero.');
+
+        saveAdvancePrice.disabled = true;
+        try {
+            await update(ref(db, `shows/${showId}`), { advancePrice });
+            if (version !== sessionVersion || currentShowId !== showId) return;
+            currentShowConfig.advancePrice = advancePrice;
+            populateTypeSelects();
+            document.getElementById('input-type').value = 'advance';
+            closeAdvancePriceModal();
+        } catch {
+            alert('No se pudo guardar el precio de anticipada.');
+        } finally {
+            saveAdvancePrice.disabled = false;
+        }
+    });
 
     // ==========================================
     // 7. CREAR NUEVO SHOW
@@ -555,7 +657,7 @@
         if (!nameInput.value.trim()) return alert('Falta el nombre');
         if (!db) return alert('Sin conexión a DB');
 
-        const types = getTicketTypes(currentShowConfig.ticketPrice);
+        const types = getTicketTypes(currentShowConfig);
         
         // sortOrder: al final de la lista
         const existingOrders = Object.values(window.currentData || {}).map(g => g.sortOrder || 0);
@@ -581,6 +683,7 @@
     // ==========================================
     const tableBody = document.getElementById('table-body');
 
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function renderTable(dataObj) {
         tableBody.innerHTML = '';
         let collected = 0, debt = 0, projected = 0, totalPeople = 0;
@@ -608,7 +711,7 @@
             totalPeople++;
             const price = parseInt(guest.price || 0);
 
-            if (guest.type === 'general') {
+            if (guest.type === 'general' || guest.type === 'advance') {
                 projected += price;
                 if (guest.paid) collected += price;
             } else if (guest.type === 'guest') {
@@ -623,6 +726,7 @@
 
             let badgeClass = guest.type === 'staff' ? 'badge-staff' : (guest.type === 'guest' ? 'badge-guest' : 'badge-general');
             let typeLabel = guest.type === 'staff' ? 'STAFF' : (guest.type === 'guest' ? 'INVITADO' : 'PÚBLICO');
+            if (guest.type === 'advance') typeLabel = 'ANTICIPADA';
 
             const dragCell = sortMode === 'manual' 
                 ? `<td><span class="drag-handle" title="Arrastrá para reordenar">⠿</span></td>` 
@@ -636,10 +740,10 @@
                         <span class="checkmark"></span>
                     </label>
                 </td>
-                <td><strong>${guest.name}</strong></td>
+                <td><strong>${escapeHtml(guest.name)}</strong></td>
                 <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
                 <td>${price === 0 ? '-' : '$'+price.toLocaleString('es-AR')}</td>
-                <td><span class="inline-comment">${guest.comment || ''}</span></td>
+                <td><span class="inline-comment">${escapeHtml(guest.comment || '')}</span></td>
                 <td style="text-align: right;">
                     <button class="action-btn btn-edit" onclick="window.openEditModal('${guest.id}')" title="Editar">✎</button>
                     <button class="action-btn btn-delete" onclick="window.deleteGuest('${guest.id}')" title="Borrar">×</button>
@@ -777,7 +881,7 @@
         const type = document.getElementById('edit-type').value;
         const priceInput = document.getElementById('edit-price');
         if (currentShowConfig && confirm('¿Actualizar precio al valor por defecto de esta categoría?')) {
-            const types = getTicketTypes(currentShowConfig.ticketPrice);
+            const types = getTicketTypes(currentShowConfig);
             priceInput.value = types[type].defaultPrice;
         }
     };
@@ -840,6 +944,7 @@
 
         const tableRows = guestsArray.map(g => {
             let tipo = g.type === 'staff' ? 'STAFF' : (g.type === 'guest' ? 'INVITADO' : 'GRAL');
+            if (g.type === 'advance') tipo = 'ANTICIPADA';
             return [g.name, tipo, "   [   ]   "];
         });
 
@@ -862,8 +967,72 @@
     // 13. ARRANQUE
     // ==========================================
     document.getElementById('app-title').innerText = BAND_NAME;
-    loadShows();
+    function clearPrivateSession() {
+        authorized = false;
+        sessionVersion++;
+        if (showsUnsubscribe) { showsUnsubscribe(); showsUnsubscribe = null; }
+        if (db && currentShowId) off(ref(db, `shows/${currentShowId}/guests`));
+        guestsListener = null;
+        currentShowId = null;
+        currentShowConfig = null;
+        openAdvancePrice.hidden = true;
+        window.currentData = null;
+        document.getElementById('table-body').replaceChildren();
+        showSelector.replaceChildren(new Option('Seleccioná un show', ''));
+        resetDashboard();
+        document.getElementById('private-app').hidden = true;
+        document.getElementById('auth-session').hidden = true;
+        document.getElementById('auth-gate').hidden = false;
+        document.getElementById('main-content').classList.add('hidden');
+        document.getElementById('no-show-state').classList.remove('hidden');
+        document.querySelectorAll('.modal-overlay').forEach(el => el.style.display = 'none');
+        document.getElementById('app-subtitle').textContent = 'Guest Manager';
+    }
+    const loginButton = document.getElementById('auth-login');
+    const authMessage = document.getElementById('auth-message');
+    const errors = {
+        'auth/operation-not-allowed': 'El acceso con Google todavía no está habilitado en Firebase.',
+        'auth/unauthorized-domain': 'Este dominio todavía no está autorizado para el acceso con Google.',
+        'auth/popup-blocked': 'El navegador bloqueó la ventana. Permití la ventana de Google y volvé a intentar.',
+        'auth/popup-closed-by-user': 'Se cerró la ventana de Google. Podés volver a intentar.',
+        'auth/web-storage-unsupported': 'El navegador no permite recordar la sesión. Habilitá almacenamiento para este sitio.'
+    };
+    loginButton.onclick = async () => {
+        if (!authReady) return;
+        loginButton.disabled = true;
+        authMessage.textContent = 'Abriendo Google…';
+        try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+        catch (error) { authMessage.textContent = errors[error.code] || 'No pudimos iniciar sesión. Volvé a intentar (' + error.code + ').'; }
+        finally { loginButton.disabled = false; }
+    };
+    document.getElementById('auth-logout').onclick = async () => {
+        clearPrivateSession();
+        try { await signOut(auth); authMessage.textContent = 'Sesión cerrada.'; }
+        catch { authMessage.textContent = 'No se pudo cerrar la sesión de Google. Recargá e intentá de nuevo.'; }
+    };
+    if (auth) {
+        try {
+            await setPersistence(auth, browserLocalPersistence);
+            authReady = true;
+            onAuthStateChanged(auth, user => {
+                clearPrivateSession();
+                loginButton.disabled = false;
+                if (!user) { authMessage.textContent = 'Solo los cinco integrantes autorizados tienen acceso.'; return; }
+                if (!isBandMember(user)) { authMessage.textContent = 'Esta cuenta no tiene acceso. Elegí la cuenta autorizada de la banda.'; signOut(auth).catch(() => {}); return; }
+                authorized = true;
+                document.getElementById('auth-gate').hidden = true;
+                document.getElementById('private-app').hidden = false;
+                document.getElementById('auth-session').hidden = false;
+                document.getElementById('auth-account').textContent = user.email;
+                loadShows();
+            });
+        } catch (error) { authMessage.textContent = errors[error.code] || 'No se pudo preparar el acceso (' + error.code + ').'; }
+    } else { authMessage.textContent = 'No se pudo conectar con Firebase. Recargá la página.'; }
+
 
 </script>
+<aside class="payment-alias" aria-label="Datos para comprar entradas">
+    <span>Alias para entradas: </span><strong>nihil.metal</strong>
+</aside>
 </body>
 </html>
